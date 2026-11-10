@@ -1,0 +1,199 @@
+{
+  "id": "TICKET-002",
+  "titulo": "Corrigir brilho sem efeito no monitor LG e adicionar selecao de preto e branco maximos",
+  "status": "concluido",
+  "criado_em": "2026-10-29",
+  "solicitacao_original": "O slider de brilho nao controla o brilho da tela LG. Tambem deve ser possivel selecionar o preto maximo e o branco maximo.",
+  "definicao": {
+    "operacao": "Alterar",
+    "escopo": "Controlador de exibicao, interop DDC/CI e gamma, modelos de estado, janela principal, janela de configuracoes, CLI e documentacao.",
+    "fora_do_escopo": [
+      "Alterar os arquivos de instrucoes em .github/agents/",
+      "Suporte a HDR ou a calibracao por colorimetro"
+    ],
+    "resultado_esperado": "O slider de brilho altera de fato a luminosidade da tela do LG, cada monitor pode ser forcado para DDC/CI ou software, e o usuario escolhe o preto e o branco maximos por monitor, com valores refletidos na rampa de gamma.",
+    "restricoes": [
+      "Preto padrao continua #202020",
+      "Nao deixar a tela sem controle quando o DDC/CI falha",
+      "Idioma pt-BR"
+    ]
+  },
+  "modo_execucao": "automatico",
+  "tarefas": [
+    {
+      "id": "T01",
+      "titulo": "Diagnosticar e corrigir o DDC/CI que aceita comando sem alterar o painel",
+      "agente": "Programador Sênior",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [],
+      "contexto_necessario": [
+        "GetPhysicalMonitorsFromHMONITOR devolvia handle 0x0 no LG",
+        "SetMonitorBrightness retornava sucesso sem efeito"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Interop/MonitorEnumerator.cs",
+        "src/DisplayDimmer/Interop/NativeMethods.cs",
+        "src/DisplayDimmer/Services/DisplayController.cs"
+      ],
+      "criterios_aceite": [
+        "Handle invalido nao e usado para DDC/CI",
+        "Escrita de brilho e confirmada por leitura de volta",
+        "Falha de hardware cai automaticamente para gamma"
+      ],
+      "resultado": "Leitura da estrutura em memoria nao gerenciada, descarte de handle nulo, verificacao por leitura de volta na primeira escrita e fallback para gamma com o monitor marcado como sem DDC/CI.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Interop/MonitorEnumerator.cs",
+        "src/DisplayDimmer/Interop/NativeMethods.cs",
+        "src/DisplayDimmer/Services/DisplayController.cs"
+      ],
+      "testes": [
+        "--ddc mostrou handle 0x0 no LG e GetMonitorBrightness falso",
+        "Apos a correcao: ultima aplicacao 'gamma 50%' e rampa lida com preto 0x2020 e branco 0x9010"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {"duracao_segundos": 0, "tokens_entrada": null, "tokens_saida": null, "tokens_total": null},
+      "resolvido_por": {"agente": "Programador Sênior", "modelo": null, "provedor": null},
+      "observacoes": []
+    },
+    {
+      "id": "T02",
+      "titulo": "Adicionar seletor de modo de controle por monitor (automatico, DDC/CI, software)",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": ["T01"],
+      "contexto_necessario": ["Usuario precisa forcar software quando o driver de DDC/CI e enganoso"],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Models/DisplayState.cs",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml",
+        "src/DisplayDimmer/ViewModels/SettingsViewModel.cs"
+      ],
+      "criterios_aceite": [
+        "Cada monitor tem um seletor com tres modos",
+        "Trocar o modo reaplica os valores imediatamente",
+        "Configuracoes antigas com UseHardware continuam validas"
+      ],
+      "resultado": "Enum DisplayControl (Auto, Hardware, Software) no estado por monitor, seletor na aba Monitores e migracao de UseHardware no carregamento.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Models/DisplayState.cs",
+        "src/DisplayDimmer/Services/DisplayController.cs",
+        "src/DisplayDimmer/Services/SettingsService.cs",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml.cs",
+        "src/DisplayDimmer/ViewModels/SettingsViewModel.cs"
+      ],
+      "testes": [
+        "Snapshot da aba Monitores com os dois seletores em Automatico",
+        "settings.json migrado sem o campo legado UseHardware"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {"duracao_segundos": 0, "tokens_entrada": null, "tokens_saida": null, "tokens_total": null},
+      "resolvido_por": {"agente": "Programador", "modelo": null, "provedor": null},
+      "observacoes": []
+    },
+    {
+      "id": "T03",
+      "titulo": "Implementar selecao de preto maximo e branco maximo",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": ["T01"],
+      "contexto_necessario": ["Rampa de gamma com faixa de entrada remapeada entre preto e branco"],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/ColorMath.cs",
+        "src/DisplayDimmer/Models/DisplayState.cs",
+        "src/DisplayDimmer/Views/MainWindow.xaml",
+        "src/DisplayDimmer/ViewModels/MainViewModel.cs",
+        "src/DisplayDimmer/Cli/CliProcessor.cs"
+      ],
+      "criterios_aceite": [
+        "Preto e branco maximos ajustaveis por monitor",
+        "Valores em hexadecimal visiveis na janela",
+        "Presets e CLI guardam os niveis",
+        "Preto nao desce de #202020 com o limite ligado"
+      ],
+      "resultado": "BlackLevel e WhiteLevel no estado, faixa remapeada em BuildRamp, secao Niveis recolhivel na janela principal, suporte em presets, reset e CLI (black= e white=).",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/ColorMath.cs",
+        "src/DisplayDimmer/Models/DisplayState.cs",
+        "src/DisplayDimmer/Models/AppSettings.cs",
+        "src/DisplayDimmer/Services/DisplayController.cs",
+        "src/DisplayDimmer/ViewModels/MainViewModel.cs",
+        "src/DisplayDimmer/Views/MainWindow.xaml",
+        "src/DisplayDimmer/Views/MainWindow.xaml.cs",
+        "src/DisplayDimmer/Themes/Controls.xaml",
+        "src/DisplayDimmer/Cli/CliProcessor.cs"
+      ],
+      "testes": [
+        "--set black=48 white=220 aplicou preto #303030 e branco #DCDCDC",
+        "Rampa lida do driver: preto 0x2828, branco 0xB4B4 com brilho 70%",
+        "Reset voltou para preto #202020 e branco #FFFFFF",
+        "Snapshots da janela com a secao Niveis aberta"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {"duracao_segundos": 0, "tokens_entrada": null, "tokens_saida": null, "tokens_total": null},
+      "resolvido_por": {"agente": "Programador", "modelo": null, "provedor": null},
+      "observacoes": []
+    },
+    {
+      "id": "T04",
+      "titulo": "Atualizar documentacao e publicar nova versao",
+      "agente": "Documentador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": ["T02", "T03"],
+      "contexto_necessario": ["docs/README.md, docs/cli.md, docs/design.md e docs/arquitetura.md"],
+      "arquivos_alvo": ["docs/", "dist/"],
+      "criterios_aceite": [
+        "Documentacao explica niveis e modos de controle",
+        "CLI documenta black e white",
+        "dist atualizado com a correcao"
+      ],
+      "resultado": "Documentacao atualizada com a secao de niveis, tabela de modos de controle, diagnostico --ddc e exemplos de CLI; capturas regeneradas e dist republicado.",
+      "arquivos_alterados": [
+        "docs/README.md",
+        "docs/cli.md",
+        "docs/design.md",
+        "docs/arquitetura.md",
+        "docs/img/",
+        "dist/"
+      ],
+      "testes": ["Build Release sem erros", "Publicacao em dist e execucao de --list e --debug"],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {"duracao_segundos": 0, "tokens_entrada": null, "tokens_saida": null, "tokens_total": null},
+      "resolvido_por": {"agente": "Documentador", "modelo": null, "provedor": null},
+      "observacoes": []
+    }
+  ],
+  "metricas": {
+    "duracao_segundos": 0,
+    "tokens_total": 0,
+    "tarefas_sem_tokens": ["T01", "T02", "T03", "T04"],
+    "modelos_usados": []
+  },
+  "historico": [
+    {
+      "em": "2026-10-29T09:06:00-0300",
+      "evento": "ticket_criado",
+      "resumo": "Relato de slider de brilho sem efeito no LG e pedido de selecao de preto e branco maximos. Criado ticket novo por ser objetivo diferente do ticket-001.",
+      "resultado": "4 microtarefas em modo automatico"
+    },
+    {
+      "em": "2026-10-29T09:35:00-0300",
+      "evento": "causa_raiz",
+      "resumo": "GetPhysicalMonitorsFromHMONITOR devolvia handle 0x0 e SetMonitorBrightness retornava sucesso sem alterar o painel.",
+      "resultado": "Fallback para gamma e verificacao por leitura de volta"
+    },
+    {
+      "em": "2026-10-29T09:55:00-0300",
+      "evento": "conclusao",
+      "resumo": "Correcao aplicada, modo de controle por monitor, niveis de preto e branco, documentacao e publicacao.",
+      "resultado": "Build Release sem erros; rampa de gamma verificada no driver"
+    }
+  ]
+}

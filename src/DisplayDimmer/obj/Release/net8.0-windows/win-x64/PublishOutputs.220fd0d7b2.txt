@@ -1,0 +1,5 @@
+D:\Projetos OFFLINE\DESENVOLVIMENTO\displaydimmer\dist\DisplayDimmer.exe
+D:\Projetos OFFLINE\DESENVOLVIMENTO\displaydimmer\dist\DisplayDimmer.dll
+D:\Projetos OFFLINE\DESENVOLVIMENTO\displaydimmer\dist\DisplayDimmer.deps.json
+D:\Projetos OFFLINE\DESENVOLVIMENTO\displaydimmer\dist\DisplayDimmer.runtimeconfig.json
+D:\Projetos OFFLINE\DESENVOLVIMENTO\displaydimmer\dist\DisplayDimmer.pdb

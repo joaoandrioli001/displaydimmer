@@ -1,0 +1,143 @@
+{
+  "id": "TICKET-003",
+  "titulo": "Permitir preto #000000 e digitacao do codigo de cor nos niveis",
+  "status": "concluido",
+  "criado_em": "2026-10-29",
+  "solicitacao_original": "Devera permitir preto #000000. Devera ser possivel digitar o codigo na cor.",
+  "definicao": {
+    "operacao": "Alterar",
+    "escopo": "Niveis de preto e branco na janela principal, modelos de estado, controlador, CLI e documentacao.",
+    "fora_do_escopo": [
+      "Alterar os arquivos de instrucoes em .github/agents/",
+      "Suporte a perfis de cor por canal RGB"
+    ],
+    "resultado_esperado": "O usuario consegue definir preto #000000 e digitar qualquer codigo de cor (#RRGGBB, #RGB ou hexadecimal) nos campos de preto e branco, com o valor aplicado na hora.",
+    "restricoes": [
+      "Preto padrao continua #202020 ao restaurar os niveis",
+      "Niveis sao tons de cinza; cores com canais diferentes usam a media"
+    ]
+  },
+  "modo_execucao": "automatico",
+  "tarefas": [
+    {
+      "id": "T01",
+      "titulo": "Remover o limite fixo de preto #202020",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [],
+      "contexto_necessario": ["A opcao ClampBlackTo202020 impedia o slider de descer de #202020"],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Models/AppSettings.cs",
+        "src/DisplayDimmer/Services/DisplayController.cs",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml.cs",
+        "src/DisplayDimmer/Cli/CliProcessor.cs"
+      ],
+      "criterios_aceite": [
+        "Preto pode ser ajustado de 0 a 160",
+        "Opcao de limite removida da interface e do modelo",
+        "Reset volta ao preto #202020"
+      ],
+      "resultado": "Propriedade ClampBlackTo202020 removida, checkbox retirado de Configuracoes, faixa do preto de 0 a 160 e reset em #202020.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Models/AppSettings.cs",
+        "src/DisplayDimmer/Services/DisplayController.cs",
+        "src/DisplayDimmer/Services/ColorMath.cs",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml.cs",
+        "src/DisplayDimmer/ViewModels/MainViewModel.cs",
+        "src/DisplayDimmer/Cli/CliProcessor.cs"
+      ],
+      "testes": [
+        "--set black=#000000 aplicou rampa com preto 0x0000",
+        "Snapshot da aba Geral sem a opcao removida"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {"duracao_segundos": 0, "tokens_entrada": null, "tokens_saida": null, "tokens_total": null},
+      "resolvido_por": {"agente": "Programador", "modelo": null, "provedor": null},
+      "observacoes": []
+    },
+    {
+      "id": "T02",
+      "titulo": "Adicionar campos para digitar o codigo de cor",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": ["T01"],
+      "contexto_necessario": ["Campo de texto ao lado de cada nivel, com Enter para aplicar e Esc para desfazer"],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Views/MainWindow.xaml",
+        "src/DisplayDimmer/Views/MainWindow.xaml.cs",
+        "src/DisplayDimmer/Services/ColorMath.cs",
+        "src/DisplayDimmer/Themes/Controls.xaml"
+      ],
+      "criterios_aceite": [
+        "Aceita #RRGGBB, #RGB e nivel hexadecimal",
+        "Enter aplica e Esc desfaz",
+        "Valor invalido mantem o valor anterior"
+      ],
+      "resultado": "ColorMath.TryParseHexLevel com tres formatos, campos HexBox na secao Niveis, handlers de Enter/Esc/LostFocus e estilo compacto em Consolas.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Views/MainWindow.xaml",
+        "src/DisplayDimmer/Views/MainWindow.xaml.cs",
+        "src/DisplayDimmer/Services/ColorMath.cs",
+        "src/DisplayDimmer/Themes/Controls.xaml",
+        "src/DisplayDimmer/Cli/CliProcessor.cs"
+      ],
+      "testes": [
+        "--set black=#202020 e black=#000000 interpretados corretamente",
+        "Snapshot da janela com os dois campos visiveis"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {"duracao_segundos": 0, "tokens_entrada": null, "tokens_saida": null, "tokens_total": null},
+      "resolvido_por": {"agente": "Programador", "modelo": null, "provedor": null},
+      "observacoes": []
+    },
+    {
+      "id": "T03",
+      "titulo": "Atualizar documentacao e publicar",
+      "agente": "Documentador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": ["T02"],
+      "contexto_necessario": ["docs/ e dist/"],
+      "arquivos_alvo": ["docs/", "dist/"],
+      "criterios_aceite": [
+        "Documentacao explica o preto #000000 e a digitacao",
+        "Capturas atualizadas",
+        "dist republicado"
+      ],
+      "resultado": "README, cli.md, design.md e arquitetura.md atualizados; capturas regeneradas; publicacao em dist.",
+      "arquivos_alterados": ["docs/README.md", "docs/cli.md", "docs/design.md", "docs/arquitetura.md", "docs/img/", "dist/"],
+      "testes": ["Build Release sem erros nem avisos"],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {"duracao_segundos": 0, "tokens_entrada": null, "tokens_saida": null, "tokens_total": null},
+      "resolvido_por": {"agente": "Documentador", "modelo": null, "provedor": null},
+      "observacoes": []
+    }
+  ],
+  "metricas": {
+    "duracao_segundos": 0,
+    "tokens_total": 0,
+    "tarefas_sem_tokens": ["T01", "T02", "T03"],
+    "modelos_usados": []
+  },
+  "historico": [
+    {
+      "em": "2026-10-29T09:21:00-0300",
+      "evento": "ticket_criado",
+      "resumo": "Pedido para liberar preto #000000 e permitir digitar o codigo de cor. Ticket novo por ser objetivo distinto do ticket-002.",
+      "resultado": "3 microtarefas em modo automatico"
+    },
+    {
+      "em": "2026-10-29T09:45:00-0300",
+      "evento": "conclusao",
+      "resumo": "Limite removido, campos de cor adicionados, CLI aceita hexadecimal e documentacao atualizada.",
+      "resultado": "Rampa com preto 0x0000 confirmada; build Release sem erros"
+    }
+  ]
+}

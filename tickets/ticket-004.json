@@ -1,0 +1,28 @@
+{
+  "id": "TICKET-004",
+  "titulo": "Ajustar documentacao do projeto para seguir as regras do Documentador",
+  "status": "planejamento",
+  "criado_em": "2026-10-29",
+  "solicitacao_original": "a documentação do projeto não ta seguindo regras do documentador, arrume",
+  "definicao": {
+    "operacao": "Alterar",
+    "escopo": "Pasta docs/ e conteudo da documentacao existente (README.md, arquitetura.md, cli.md, design.md e imagens de suporte)",
+    "fora_do_escopo": [
+      "Codigo fonte em src/",
+      "Tickets existentes",
+      "Arquivos de configuracao do projeto (.sln, .csproj, build.cmd)",
+      "Pasta dist/"
+    ],
+    "resultado_esperado": "Documentacao migrada para a pasta Docs/ em arquivos JSON, seguindo o formato definido em .github/agents/documentador.agent.md, nunca em Markdown",
+    "restricoes": [
+      "Nunca usar Markdown para documentacao",
+      "Todos os topicos devem seguir o formato JSON do Documentador (id, colecao, ordem, titulo, resumo, origem, guia/referencia/ia, blocos com tipos permitidos)",
+      "O mapa.json e gerado por script, nunca editado a mao",
+      "Nunca alterar codigo do projeto",
+      "Escrever sempre em portugues do Brasil"
+    ]
+  },
+  "modo_execucao": "manual",
+  "tarefas": [],
+  "historico": []
+}

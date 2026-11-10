@@ -1,0 +1,391 @@
+{
+  "id": "TICKET-005",
+  "titulo": "Impedir que a rolagem do mouse altere o brilho fora do icone da bandeja",
+  "status": "concluido",
+  "criado_em": "2026-10-31",
+  "solicitacao_original": "as vezes eu utilizo o scroll no windows e a tela comeca a escurecer ou aumentar o brilho, mesmo o app estando minimizado",
+  "definicao": {
+    "operacao": "Alterar",
+    "escopo": "Deteccao da area de notificacao em src/DisplayDimmer/Services/TrayService.cs e os P/Invoke necessarios em src/DisplayDimmer/Interop/NativeMethods.cs",
+    "fora_do_escopo": [
+      "Comportamento de brilho, contraste, temperatura e gamma (DisplayController, OverlayService)",
+      "Atalhos globais (HotkeyService) e teclas nativas de brilho (BrightnessKeyService)",
+      "Persistencia de configuracoes (AppSettings, SettingsService)",
+      "Documentacao em docs/ e Docs/",
+      "Tickets existentes",
+      "Pasta dist/ alem do artefato gerado pelo build"
+    ],
+    "resultado_esperado": "A rolagem do mouse so altera o brilho quando o cursor esta sobre o icone do Display Dimmer na bandeja do sistema; sobre qualquer outra janela do Windows o brilho nao muda, mesmo com o aplicativo minimizado",
+    "restricoes": [
+      "Preservar o ajuste de 5% (passo configuravel em TrayStepPercent) ao rolar sobre o icone da bandeja",
+      "Nao instalar novos hooks globais e nao remover o hook de roda do mouse ja existente",
+      "Preferir a solucao mais simples que elimine o falso positivo sem quebrar o recurso existente",
+      "Registrar no ticket as suposicoes adotadas",
+      "Escrever sempre em portugues do Brasil (pt-BR)"
+    ]
+  },
+  "modo_execucao": "manual",
+  "tarefas": [
+    {
+      "id": "T01",
+      "titulo": "Diagnosticar a causa raiz do ajuste de brilho disparado pela rolagem fora da bandeja",
+      "agente": "Programador Sênior",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [],
+      "contexto_necessario": [
+        "O usuario relata que a rolagem do mouse as vezes escurece ou aumenta o brilho mesmo com o aplicativo minimizado",
+        "Caminho suspeita: TrayService.Start instala hook global WH_MOUSE_LL, MouseHookCallback trata WM_MOUSEWHEEL e IsOverNotificationArea decide pela lista de nomes de classe (inclui 'Windows.UI.Core.CoreWindow' e 'TopLevelWindowForOverflowXamlIsland'), acionando App.OnTrayWheel -> StepBrightness",
+        "Avaliar e descartar os outros caminhos de disparo: BrightnessKeyService (raw input HID 0x006F/0x0070), HotkeyService (WM_APPCOMMAND de brilho) e OverlayService (janela sobreposta por monitor)",
+        "A documentacao (docs/README.md) define o recurso como 'Roda do mouse sobre o icone: altera o brilho no passo configurado'"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/TrayService.cs",
+        "src/DisplayDimmer/Services/BrightnessKeyService.cs",
+        "src/DisplayDimmer/Services/HotkeyService.cs",
+        "src/DisplayDimmer/Services/OverlayService.cs",
+        "src/DisplayDimmer/App.xaml.cs"
+      ],
+      "criterios_aceite": [
+        "Apontar o ponto exato que produz o falso positivo, com arquivo e linha",
+        "Confirmar ou descartar BrightnessKeyService, HotkeyService e OverlayService como origem do disparo",
+        "Registrar a causa raiz nas observacoes da tarefa sem alterar codigo-fonte"
+      ],
+      "resultado": "Causa raiz confirmada: o falso positivo esta na comparacao de nomes de classe em TrayService.IsOverNotificationArea (TrayService.cs:203-210), acionada por MouseHookCallback (TrayService.cs:165). A lista inclui superficies XAML genericas do Windows 11 ('Windows.UI.Core.CoreWindow'), a barra de tarefas inteira ('Shell_TrayWnd') e a area de notificacao inteira ('TrayNotifyWnd'), e nao apenas o icone do aplicativo. BrightnessKeyService, HotkeyService e OverlayService foram descartados como origem. Correcao recomendada para T02: decisao geometrica via Shell_NotifyIconGetRect, com falha segura quando a API falhar ou devolver retangulo vazio, remocao das classes genericas, hook global e passo de 5% preservados. 6 observacoes registradas nesta tarefa.",
+      "arquivos_alterados": [
+        "tickets/ticket-005.json"
+      ],
+      "testes": [],
+      "tentativas": 1,
+      "execucoes": [
+        {
+          "tentativa": 1,
+          "agente": "Programador Sênior",
+          "inicio": "2026-10-31T08:49:10-0300",
+          "fim": "2026-10-31T08:52:24-0300",
+          "duracao_segundos": 194,
+          "tokens": {
+            "entrada": null,
+            "saida": null,
+            "total": null,
+            "fonte": "nao_disponivel"
+          },
+          "ia": {
+            "modelo": "MiniMax-M3.1-Flash",
+            "provedor": "MiniMax",
+            "fonte": "informado_pelo_agente"
+          }
+        }
+      ],
+      "metricas": {
+        "duracao_segundos": 194,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador Sênior",
+        "modelo": "MiniMax-M3.1-Flash",
+        "provedor": "MiniMax"
+      },
+      "observacoes": [
+        {
+          "data_hora": "2026-10-31T08:52:00-0300",
+          "agente": "Programador Sênior",
+          "tipo": "causa_raiz",
+          "detalhe": "O falso positivo nasce em src/DisplayDimmer/Services/TrayService.cs, no metodo IsOverNotificationArea (linhas 185-220). A decisao de agir e a comparacao de nomes de classe em TrayService.cs:203-210 (invocada a partir de TrayService.cs:165, dentro de MouseHookCallback). Tres nomes da lista nao identificam o icone do Display Dimmer: 'Windows.UI.Core.CoreWindow' (linha 207) e a classe generica de janela XAML usada por qualquer aplicacao UWP/WinUI (Configuracoes, Microsoft Store, Calculadora, paineis de Widgets, Quick Settings, Central de Notificacoes), 'Shell_TrayWnd' (linha 203) e a barra de tarefas inteira, incluindo a area dos botoes de aplicativos, e 'TrayNotifyWnd' (linha 204) e a area de notificacao inteira (relogio, volume, bateria, seta de icones ocultos, icones de outros programas). Ao casar com qualquer um deles o codigo engole o evento de roda (return (IntPtr)1 em TrayService.cs:177) e dispara App.OnTrayWheel (App.xaml.cs:410-414) -> StepBrightness(+/-TrayStepPercent) (App.xaml.cs:380-386), aplicando 5% por entalhe (Models/AppSettings.cs:20).",
+          "resultado": "Causa raiz confirmada: a decisao de ajustar o brilho e tomada por heuristica de nome de classe de janela, e nao pela posicao real do icone na bandeja."
+        },
+        {
+          "data_hora": "2026-10-31T08:52:00-0300",
+          "agente": "Programador Sênior",
+          "tipo": "porque_ocorre_com_o_app_minimizado",
+          "detalhe": "O hook WH_MOUSE_LL e global: recebe WM_MOUSEWHEEL de toda a sessao, independentemente de foco, visibilidade ou minimizacao das janelas do aplicativo. TrayService.Start() e chamado em App.BuildUi (App.xaml.cs:118-121) durante OnStartup, que roda mesmo com o app minimizado (App.xaml.cs:103-105); e o processo permanece vivo porque ShutdownMode = OnExplicitShutdown (App.xaml.cs:50). Como o hook fica instalado desde o Start(), cada rolagem do mouse em qualquer tela do Windows passa por IsOverNotificationArea e pode acionar o ajuste de brilho. Minimizar o aplicativo nao tem nenhum efeito sobre esse caminho.",
+          "resultado": "Explicado: o efeito com o app minimizado e consequencia direta do hook global de baixo nivel instalado em TrayService.cs:91, nao do estado da interface."
+        },
+        {
+          "data_hora": "2026-10-31T08:52:00-0300",
+          "agente": "Programador Sênior",
+          "tipo": "descartes",
+          "detalhe": "BrightnessKeyService: descartado. A rolagem do mouse nao chega nele porque o servico so processa raw input do tipo HID (filtro type != RIM_TYPEHID em BrightnessKeyService.cs:83-87); mouse chega como RIM_TYPEMOUSE e teclado como RIM_TYPEKEYBOARD, ambos descartados antes do varredura de usages. Alem disso a roda e entregue como WM_MOUSEWHEEL/relato HID de mouse, nunca como usage Consumer 0x006F/0x0070 (Brightness Increase/Decrease), que so teclado com esse recurso emite. O servico ainda so e ativado com EnableNativeBrightnessKeys ligado (App.xaml.cs:131-134). HotkeyService: descartado. Ele reage apenas a WM_HOTKEY vindo de RegisterHotKey com combinacoes de teclas (HotkeyService.cs:82-91, App.xaml.cs:344-347) e a roda do mouse nao gera WM_HOTKEY. A suspeita de 'HotkeyService (WM_APPCOMMAND de brilho)' do contexto do ticket nao se aplica ao codigo atual: WM_APPCOMMAND e APPCOMMAND_BRIGHTNESS_UP/DOWN existem apenas como constantes em src/DisplayDimmer/Interop/NativeMethods.cs:8,21-22 e nenhuma linha do projeto trata WM_APPCOMMAND (resto do ticket-001, codigo morto). OverlayService: descartado como origem. Ele nao le entrada de mouse em lugar nenhum; SetDim (OverlayService.cs:22-51) so e chamado pelo DisplayController depois que o brilho ja mudou, ou seja, e consequencia visual do ajuste, nao causa. A janela sobreposta e criada com IsHitTestVisible = false e WS_EX_TRANSPARENT/WS_EX_NOACTIVATE (OverlayService.cs:106 e 132-136), portanto e click-through; e, mesmo que interceptasse o hit test, a classe WPF gerada (HwndWrapper[DisplayDimmer.exe;;guid]) nao esta na lista, o que geraria falso negativo, nunca falso positivo.",
+          "resultado": "Confirmado: a unica origem do disparo por rolagem e o hook de TrayService; BrightnessKeyService, HotkeyService e OverlayService foram descartados."
+        },
+        {
+          "data_hora": "2026-10-31T08:52:00-0300",
+          "agente": "Programador Sênior",
+          "tipo": "recomendacao_de_correcao",
+          "detalhe": "Correcao recomendada (simples e duravel): trocar a heuristica de nome de classe por decisao geometrica dentro de IsOverNotificationArea, sem remover o hook e sem alterar o passo de 5% (restricoes do ticket). (a) Usar Shell_NotifyIconGetRect (shell32) com NOTIFYICONIDENTIFIER { hwnd = _source.Handle, uID = IconId (=1), guidItem = Guid.Empty } e comparar a posicao do cursor (GetCursorPos, TrayService.cs:189) com o retangulo devolvido; a struct exige uID como UInt64 e o retorno e HRESULT (S_OK = 0), logo o P/Invoke precisa declarar uID como ulong e o resultado como int preservando o HRESULT. O aplicativo ja e PerMonitorV2 DPI aware (src/DisplayDimmer/app.manifest), entao o retangulo do shell e GetCursorPos estao no mesmo espaco de coordenadas fisicas e sao diretamente comparaveis. (b) Falhar de forma segura: se a API falhar (HRESULT diferente de S_OK, entrada nao encontrada) ou devolver retangulo vazio/invalido (Right <= Left ou Bottom <= Top), nao ajustar o brilho e registrar o motivo no log existente controlado por DISPLAYDIMMER_LOG (TrayService.cs:30-46); falso negativo e preferivel a falso positivo. (c) Remover da lista 'Shell_TrayWnd', 'TrayNotifyWnd' e 'Windows.UI.Core.CoreWindow'. Manter apenas 'NotifyIconOverflowWindow' e 'TopLevelWindowForOverflowXamlIsland' como fallback opcional, restrito ao flyout de overflow da bandeja, e nunca como condicao suficiente para agir quando o retangulo do icone estiver disponivel e o cursor nao estiver dentro dele. (d) O hook global WH_MOUSE_LL pode e deve continuar: ele e apenas o portador do evento de roda; o defeito esta na funcao de decisao. O engolimento do evento (return 1) deve continuar sendo feito apenas quando o cursor estiver realmente sobre o icone.",
+          "resultado": "Recomendacao fechada para T02: decisao geometrica via Shell_NotifyIconGetRect, com falha segura, remocao das classes genericas e manutencao do hook e do passo de 5%."
+        },
+        {
+          "data_hora": "2026-10-31T08:52:00-0300",
+          "agente": "Programador Sênior",
+          "tipo": "documentacao",
+          "detalhe": "docs/README.md:73 documenta 'Roda do mouse sobre o icone: altera o brilho no passo configurado (padrao 5%)'. O comportamento atual excede o documentado: vale para a area de notificacao inteira, para a barra de tarefas inteira e para qualquer janela XAML/UWP/WinUI do Windows 11. A documentacao esta correta como especificacao e o codigo atual e que esta fora dela; nao ha divida a corrigir em docs/.",
+          "resultado": "Confirmado: o comportamento atual nao corresponde ao documentado (e um superset); a correcao deve alinhar o codigo a documentacao existente."
+        },
+        {
+          "data_hora": "2026-10-31T08:52:00-0300",
+          "agente": "Programador Sênior",
+          "tipo": "observacoes_adicionais",
+          "detalhe": "1) Existe uma segunda fonte de mudanca de brilho nao relacionada a rolagem: AppRuleService (src/DisplayDimmer/Services/AppRuleService.cs) reaplica presets quando o aplicativo em primeiro plano muda, avaliado por timer de 1 s. Se o usuario tiver regra configurada para o aplicativo em foco, ele pode atribuir a rolagem a mudanca que na verdade veio da troca de foco (clique), nao da roda. 2) Debounce de 25 ms em TrayService.cs:171 limita apenas disparos duplicados do mesmo entalhe e nao evita o falso positivo. 3) O callback do hook roda na thread da UI (install em TrayService.cs:91 chamado de App.BuildUi) e StepBrightness chama o DisplayController de forma sincrona (App.xaml.cs:380-386); um hook WH_MOUSE_LL que demore demais pode ser descartado silenciosamente pelo Windows (LowLevelHooksTimeout), o que convém evitar ao mexer nesse caminho. 4) Suposicao adotada: o retangulo devolvido por Shell_NotifyIconGetRect quando o icone esta escondido no flyout de overflow pode ser vazio; nesse caso a falha segura mantem o recurso inativo enquanto o icone estiver oculto, comportamento aceito por preferencia de nao mexer no brilho do usuario.",
+          "resultado": "Registrado: contexto adicional para T02 e T03."
+        }
+      ]
+    },
+    {
+      "id": "T02",
+      "titulo": "Trocar a heuristica de nome de classe pela posicao real do icone da bandeja",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T01"
+      ],
+      "contexto_necessario": [
+        "A deteccao atual em TrayService.IsOverNotificationArea sobe a cadeia de pais da janela sob o cursor e compara nomes de classe; classes XAML genericas do Windows 11 como 'Windows.UI.Core.CoreWindow' nao sao exclusivas da bandeja e produzem falso positivo",
+        "A decisao de ajustar o brilho deve passar a ser geometricica: cursor dentro do retangulo real do icone da bandeja, obtido com Shell_NotifyIconGetRect (shell32, disponivel no Windows 10 1709 em diante)",
+        "Se a API falhar ou devolver retangulo vazio, nao ajustar o brilho (falhar de forma segura) e registrar o motivo no log existente controlado por DISPLAYDIMMER_LOG",
+        "Nao remover o hook de roda do mouse nem alterar o passo de 5% definido em TrayStepPercent"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/TrayService.cs",
+        "src/DisplayDimmer/Interop/NativeMethods.cs"
+      ],
+      "criterios_aceite": [
+        "A decisao de ajustar o brilho depende da posicao do cursor dentro do retangulo do icone da bandeja",
+        "Nenhum nome de classe de superficie XAML generica permanece na deteccao",
+        "O ajuste continua valendo quando o cursor esta sobre o icone da bandeja",
+        "O projeto compila sem erros"
+      ],
+      "resultado": "Correcao implementada: IsOverNotificationArea foi substituida por IsOverTrayIcon, que aceita o ajuste apenas quando o cursor esta dentro do retangulo real do icone obtido por Shell_NotifyIconGetRect. Falha segura quando a API falha ou devolve retangulo vazio. Classes genericas (Shell_TrayWnd, TrayNotifyWnd, Windows.UI.Core.CoreWindow, NotifyIconOverflowWindow, TopLevelWindowForOverflowXamlIsland) removidas da deteccao. Hook WH_MOUSE_LL, debounce de 25 ms, engolimento condicionado ao icone e passo de 5% preservados.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/TrayService.cs",
+        "src/DisplayDimmer/Interop/NativeMethods.cs"
+      ],
+      "testes": [
+        "dotnet build src/DisplayDimmer/DisplayDimmer.csproj: sucesso, 0 erros e 0 avisos (informado pelo Programador; SDK 8.0.427 local)"
+      ],
+      "tentativas": 2,
+      "execucoes": [
+        {
+          "tentativa": 1,
+          "agente": "Programador",
+          "inicio": "2026-10-31T08:52:47-0300",
+          "fim": "2026-10-31T08:54:46-0300",
+          "duracao_segundos": 119,
+          "tokens": {
+            "entrada": null,
+            "saida": null,
+            "total": null,
+            "fonte": "nao_disponivel"
+          },
+          "ia": {
+            "modelo": null,
+            "provedor": null,
+            "fonte": "nao_disponivel"
+          }
+        },
+        {
+          "tentativa": 2,
+          "agente": "Programador",
+          "inicio": "2026-10-31T08:54:59-0300",
+          "fim": "2026-10-31T08:56:47-0300",
+          "duracao_segundos": 108,
+          "tokens": {
+            "entrada": null,
+            "saida": null,
+            "total": null,
+            "fonte": "nao_disponivel"
+          },
+          "ia": {
+            "modelo": null,
+            "provedor": null,
+            "fonte": "nao_disponivel"
+          }
+        }
+      ],
+      "metricas": {
+        "duracao_segundos": 227,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": [
+        {
+          "data_hora": "2026-10-31T08:54:46-0300",
+          "tipo": "falha_de_execucao",
+          "detalhe": "A tentativa 1 foi interrompida pelo ambiente com a mensagem 'You've reached your credit usage limit. Please upgrade your subscription plan to get more resources.' Nenhum arquivo de codigo foi alterado nesta tentativa.",
+          "resultado": "Sem efeito no codigo; tentativa reexecutada como tentativa 2"
+        },
+        {
+          "data_hora": "2026-10-31T08:56:12-0300",
+          "agente": "Programador",
+          "tipo": "implementacao",
+          "detalhe": "T02 implementada apenas em src/DisplayDimmer/Services/TrayService.cs e src/DisplayDimmer/Interop/NativeMethods.cs. (1) NativeMethods.cs: struct NOTIFYICONIDENTIFIER ganhou o campo cbSize (exigido pela API; sem ele Shell_NotifyIconGetRect retorna erro) mantendo hwnd (IntPtr), uID (ulong) e guidItem (Guid); adicionado o P/Invoke 'int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER, out RECT)' em shell32.dll no final da classe. (2) TrayService.cs: IsOverNotificationArea (heuristica por nome de classe) foi substituida por IsOverTrayIcon, que consulta o retangulo real do icone com _source.Handle + IconId e compara com GetCursorPos (dentro de [Left,Right) x [Top,Bottom)). Falha segura: hwnd ausente, GetCursorPos falso, HRESULT diferente de S_OK, retangulo vazio/invalido ou excecao resultam em nao ajustar o brilho, com o motivo registrado no log de DISPLAYDIMMER_LOG. Removidos os nomes de classe Shell_TrayWnd, TrayNotifyWnd, Windows.UI.Core.CoreWindow, NotifyIconOverflowWindow e TopLevelWindowForOverflowXamlIsland; nenhum fallback por nome de classe foi mantido, pois Shell_NotifyIconGetRect ja devolve o retangulo do icone dentro do flyout de overflow. Hook WH_MOUSE_LL, engolimento do evento (somente quando o cursor esta sobre o icone), debounce de 25 ms e passo de 5% preservados; nenhum outro arquivo alterado.",
+          "resultado": "Compilacao validada com dotnet build src/DisplayDimmer/DisplayDimmer.csproj: sucesso, 0 erro e 0 aviso (SDK 8.0.427 local, pois o PATH nao tinha SDK). Tarefa nao marcada como concluida; aguardando T03 para validacao em execucao."
+        },
+        {
+          "data_hora": "2026-10-31T08:56:47-0300",
+          "agente": "Gestor",
+          "tipo": "revisao",
+          "detalhe": "Revisao do Gestor no codigo: IsOverTrayIcon usa Shell_NotifyIconGetRect com cbSize e uID corretos, valida HRESULT e retangulo vazio e compara o cursor em [Left,Right) x [Top,Bottom). Nenhuma referencia restante a IsOverNotificationArea ou aos nomes de classe antigos no codigo-fonte. Observacao fora do escopo desta tarefa: as declaracoes P/Invoke GetParent, WindowFromPoint e GetClassName em NativeMethods.cs ficaram sem uso (eram usadas apenas pela heuristica removida); nao foram apagadas por nao fazerem parte do pedido e nao afetarem a execucao.",
+          "resultado": "Codigo revisado e consistente com os criterios de aceite"
+        }
+      ]
+    },
+    {
+      "id": "T03",
+      "titulo": "Validar a correcao com o aplicativo em execucao",
+      "agente": "Testador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T02"
+      ],
+      "contexto_necessario": [
+        "Compilar e publicar com build.cmd antes de executar qualquer verificacao",
+        "Ler o brilho com 'DisplayDimmer.exe --get --json' antes e depois de cada cenario para comparar",
+        "Cenarios: rolagem sobre janela comum do Windows e rolagem sobre o icone da bandeja",
+        "Registrar explicitamente as limitacoes do ambiente quando um cenario nao puder ser automatizado"
+      ],
+      "arquivos_alvo": [
+        "dist/DisplayDimmer.exe"
+      ],
+      "criterios_aceite": [
+        "O projeto compila e publica sem erros",
+        "Rolagem sobre janela comum nao altera o brilho lido pela CLI",
+        "Rolagem sobre o icone da bandeja altera o brilho no passo configurado",
+        "Cada cenario executado tem evidencia registrada, ou a limitacao do ambiente fica registrada no resultado"
+      ],
+      "resultado": "Testes aprovados. Cenario A (o bug): rolagem sobre janela UWP/XAML (Windows.UI.Core.CoreWindow), janela Win32 comum e janela do proprio app, com o app minimizado, nao alterou o brilho (70 -> 70 em todos). Cenario B: rolagem sobre o icone da bandeja alterou o brilho no passo de 5% (+120: 70 -> 75; -120: 75 -> 70; 3 x +120: 65 -> 80). Log sem falhas de Shell_NotifyIconGetRect. Regressao: clique no icone abre a janela principal e a CLI responde. Estado e brilho originais restaurados.",
+      "arquivos_alterados": [],
+      "testes": [
+        "Publicacao Release win-x64 com SDK local 8.0.427: sucesso (build.cmd reporta sucesso falso quando o dotnet do PATH nao tem SDK - problema externo pre-existente registrado)",
+        "Cenario A - rolagem em janela UWP/XAML, janela Win32 e na janela do proprio app, com app minimizado: brilho 70 -> 70 (sem alteracao)",
+        "Cenario B - rolagem sobre o icone da bandeja (retangulo 2154,1032,2186,1080): 70 -> 75 em +120 e 75 -> 70 em -120; 3 x +120 levou 65 -> 80",
+        "Log DISPLAYDIMMER_LOG sem 'Shell_NotifyIconGetRect falhou', 'retangulo invalido' ou 'roda ignorada'",
+        "Regressao - clique esquerdo no icone abriu a janela principal; --get e --status respondem",
+        "Estado restaurado: brilho 100 / contraste 50 / 6500 K; settings.json identico ao backup; app minimizado"
+      ],
+      "tentativas": 1,
+      "execucoes": [
+        {
+          "tentativa": 1,
+          "agente": "Testador",
+          "inicio": "2026-10-31T08:57:25-0300",
+          "fim": "2026-10-31T09:07:51-0300",
+          "duracao_segundos": 626,
+          "tokens": {
+            "entrada": null,
+            "saida": null,
+            "total": null,
+            "fonte": "nao_disponivel"
+          },
+          "ia": {
+            "modelo": null,
+            "provedor": null,
+            "fonte": "nao_disponivel"
+          }
+        }
+      ],
+      "metricas": {
+        "duracao_segundos": 626,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Testador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": [
+        {
+          "data_hora": "2026-10-31T09:07:51-0300",
+          "agente": "Testador",
+          "tipo": "limitacoes",
+          "detalhe": "1) SendInput com MOUSEEVENTF_WHEEL relata sucesso mas os eventos foram descartados nesta sessao; o teste usou mouse_event (tambem injetado, com LLMHF_INJECTED confirmado por um hook de teste proprio). 2) Os caminhos de falha da API (HRESULT diferente de S_OK ou retangulo vazio, por exemplo icone oculto no flyout de overflow) nao puderam ser forcados em execucao; foram cobertos apenas por revisao de codigo em TrayService.cs. 3) A maquina estava em uso durante os testes; em um dos casos o cursor fisico saiu do icone entre dois entalhes e o app corretamente nao alterou o brilho (ruido de ambiente, nao defeito).",
+          "resultado": "Limitacoes registradas; nenhum falso positivo observado"
+        },
+        {
+          "data_hora": "2026-10-31T09:07:51-0300",
+          "agente": "Testador",
+          "tipo": "problema_externo",
+          "detalhe": "build.cmd imprime 'Pronto' mesmo quando a publicacao falha por falta de SDK no dotnet do PATH ('No .NET SDKs were found'). O script so verifica a existencia do dotnet, nao o resultado da publicacao. Fora do escopo do TICKET-005.",
+          "resultado": "Registrado para tratamento futuro; nada alterado neste ticket"
+        }
+      ]
+    }
+  ],
+  "metricas": {
+    "duracao_segundos": 1047,
+    "tokens_total": 0,
+    "tarefas_sem_tokens": [
+      "T01",
+      "T02",
+      "T03"
+    ],
+    "modelos_usados": [
+      "MiniMax/MiniMax-M3.1-Flash"
+    ]
+  },
+  "historico": [
+    {
+      "data_hora": "2026-10-31T08:47:43-0300",
+      "evento": "ticket_criado",
+      "detalhe": "Solicitacao do usuario sobre rolagem do mouse alterar o brilho com o app minimizado. Diagnóstico inicial do Gestor: o hook global de roda do mouse em TrayService decide pela lista de nomes de classe de janela, incluindo superficies XAML genericas do Windows 11.",
+      "resultado": "Ticket criado com 3 microtarefas, aguardando selecao do usuario"
+    },
+    {
+      "data_hora": "2026-10-31T08:49:10-0300",
+      "evento": "plano_autorizado",
+      "detalhe": "O usuario autorizou a execucao do plano inteiro (T01, T02 e T03)",
+      "resultado": "T01, T02 e T03 marcadas como selecionadas; T01 iniciada com o Programador Sênior"
+    },
+    {
+      "data_hora": "2026-10-31T08:52:24-0300",
+      "evento": "tarefa_concluida",
+      "tarefa": "T01",
+      "agente": "Programador Sênior",
+      "detalhe": "Causa raiz confirmada em TrayService.IsOverNotificationArea (comparacao de nomes de classe genericos do Windows 11); BrightnessKeyService, HotkeyService e OverlayService descartados; correcao por decisao geometrica via Shell_NotifyIconGetRect recomendada para T02",
+      "resultado": "T01 concluida em 194 s; 6 observacoes registradas no ticket; nenhum arquivo de codigo alterado"
+    },
+    {
+      "data_hora": "2026-10-31T08:54:46-0300",
+      "evento": "tarefa_falhou",
+      "tarefa": "T02",
+      "agente": "Programador",
+      "detalhe": "Tentativa 1 interrompida pelo ambiente por limite de creditos da conta; nenhum arquivo alterado",
+      "resultado": "Falha de ambiente registrada; nova tentativa sera feita com a mesma abordagem"
+    },
+    {
+      "data_hora": "2026-10-31T08:56:47-0300",
+      "evento": "tarefa_concluida",
+      "tarefa": "T02",
+      "agente": "Programador",
+      "detalhe": "IsOverNotificationArea substituida por IsOverTrayIcon com Shell_NotifyIconGetRect e falha segura; classes genericas removidas; hook, debounce, engolimento condicionado ao icone e passo de 5% preservados",
+      "resultado": "T02 concluida em 227 s (2 tentativas); build sem erros e sem avisos; revisao do Gestor confirmou as alteracoes em TrayService.cs e NativeMethods.cs"
+    },
+    {
+      "data_hora": "2026-10-31T09:07:51-0300",
+      "evento": "tarefa_concluida",
+      "tarefa": "T03",
+      "agente": "Testador",
+      "detalhe": "Testes aprovados: rolagem fora do icone nao altera o brilho (janela UWP/XAML, Win32 e janela do app, com app minimizado) e rolagem sobre o icone altera em 5%; log sem falhas; clique no icone e CLI sem regressao; estado restaurado",
+      "resultado": "T03 concluida em 626 s"
+    },
+    {
+      "data_hora": "2026-10-31T09:07:51-0300",
+      "evento": "ticket_concluido",
+      "agente": "Gestor",
+      "detalhe": "Todas as tarefas concluidas e criterios finais atendidos. Problemas externos anotados sem alterar o projeto: build.cmd reporta falso sucesso quando o dotnet do PATH nao tem SDK; declaracoes P/Invoke GetParent, WindowFromPoint e GetClassName ficaram sem uso em NativeMethods.cs.",
+      "resultado": "TICKET-005 concluido"
+    }
+  ]
+}

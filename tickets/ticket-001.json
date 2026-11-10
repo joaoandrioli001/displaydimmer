@@ -1,0 +1,797 @@
+{
+  "id": "TICKET-001",
+  "titulo": "Criar aplicativo Windows Display Dimmer (brilho, contraste, temperatura, presets e automacoes)",
+  "status": "concluido_com_pendencias",
+  "criado_em": "2026-10-29",
+  "solicitacao_original": "Desenvolver um app Windows de controle rapido e confiavel de brilho para monitores externos e tela do notebook, com janela compacta conforme imagem de referencia, preto mais escuro limitado a #202020, brilho e contraste por software, reducao de luz azul, presets, controle por monitor, grupo ou todos mantendo niveis relativos, agendamentos, regras por aplicativo e tela cheia, cartoes de automacao, atalhos globais e teclas nativas, DDC/CI com alternativa por software, controle via PowerShell/CLI, ajuste de 5% pela roda do mouse na bandeja, execucao discreta e temas claro, escuro e sistema.",
+  "definicao": {
+    "operacao": "Criar",
+    "escopo": "Todo o codigo-fonte do aplicativo na raiz do projeto (solucao .NET/WPF em src/), documentacao em docs/ e tickets/.",
+    "fora_do_escopo": [
+      "Alterar os arquivos de instrucoes em .github/agents/",
+      "Publicar instalador MSI ou loja de aplicativos",
+      "Suporte a macOS ou Linux"
+    ],
+    "resultado_esperado": "Aplicativo WPF executavel no Windows que abre a janela compacta de controle, ajusta brilho, contraste e temperatura por monitor ou todos, aplica presets, respeita agendamentos e regras por aplicativo, opera pela bandeja e por linha de comando, e compila sem erros.",
+    "restricoes": [
+      "Preto mais escuro da interface e do clamp de gamma deve ser #202020",
+      "Interface e documentacao em pt-BR",
+      "Sem dependencias pagas; usar APIs nativas do Windows",
+      "Compilar com .NET 8 (WPF) e rodar em Windows 10/11"
+    ]
+  },
+  "modo_execucao": "automatico",
+  "tarefas": [
+    {
+      "id": "T01",
+      "titulo": "Estruturar solucao .NET 8 WPF e compilar projeto vazio",
+      "agente": "Programador Sênior",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [],
+      "contexto_necessario": [
+        "Sem SDK .NET na maquina: instalar SDK 8 local em %LOCALAPPDATA%\\Microsoft\\dotnet-sdk"
+      ],
+      "arquivos_alvo": [
+        "DisplayDimmer.sln",
+        "src/DisplayDimmer/DisplayDimmer.csproj"
+      ],
+      "criterios_aceite": [
+        "dotnet build conclui sem erros",
+        "App inicia e encerra sem excecao"
+      ],
+      "resultado": "Solucao DisplayDimmer.sln com projeto unico em src/DisplayDimmer (net8.0-windows, UseWPF, manifest com PerMonitorV2).",
+      "arquivos_alterados": [
+        "DisplayDimmer.sln",
+        "src/DisplayDimmer/DisplayDimmer.csproj",
+        "src/DisplayDimmer/app.manifest",
+        "src/DisplayDimmer/App.xaml",
+        "src/DisplayDimmer/App.xaml.cs"
+      ],
+      "testes": [
+        "dotnet build -c Debug",
+        "dotnet build -c Release"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador Sênior",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T02",
+      "titulo": "Implementar interop Win32: DDC/CI, gamma ramp e enumeracao de monitores",
+      "agente": "Programador Sênior",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T01"
+      ],
+      "contexto_necessario": [
+        "dxva2.dll para DDC/CI",
+        "gdi32 SetDeviceGammaRamp",
+        "EnumDisplayMonitors e QueryDisplayConfig"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Interop/"
+      ],
+      "criterios_aceite": [
+        "Enumera monitores com nome, area e suporte a DDC/CI",
+        "Le e grava brilho e contraste por hardware quando suportado",
+        "Aplica rampa de gamma por monitor"
+      ],
+      "resultado": "NativeMethods, DdcCi (dxva2), GammaRamp e MonitorEnumerator implementados; nome amigavel e tecnologia de saida via QueryDisplayConfig; tela interna por outputTechnology 0x80000000.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Interop/NativeMethods.cs",
+        "src/DisplayDimmer/Interop/DdcCi.cs",
+        "src/DisplayDimmer/Interop/GammaRamp.cs",
+        "src/DisplayDimmer/Interop/MonitorEnumerator.cs",
+        "src/DisplayDimmer/Interop/IconFactory.cs"
+      ],
+      "testes": [
+        "--list e --debug em 2 monitores",
+        "Leitura de brilho DDC/CI no LG ULTRAWIDE"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador Sênior",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T03",
+      "titulo": "Implementar controlador com brilho, contraste, temperatura e clamp de preto #202020",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T02"
+      ],
+      "contexto_necessario": [
+        "Brilho e contraste por hardware ou software",
+        "Niveis relativos entre monitores ao ajustar todos"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/DisplayController.cs",
+        "src/DisplayDimmer/Services/ColorMath.cs"
+      ],
+      "criterios_aceite": [
+        "Ajuste de todos mantem proporcao relativa",
+        "Temperatura altera canais RGB corretamente",
+        "Clamp de preto produz saida minima 0x20"
+      ],
+      "resultado": "ColorMath com curva de brilho/contraste/temperatura e piso #202020; DisplayController aplica por monitor, grupo ou todos, com brilho relativo por delta e escolha entre hardware e software.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/ColorMath.cs",
+        "src/DisplayDimmer/Services/DisplayController.cs",
+        "src/DisplayDimmer/Models/DisplayState.cs"
+      ],
+      "testes": [
+        "--set brightness=60 seguido de --get confirmou 60%",
+        "Verificacao do piso de preto na rampa"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T04",
+      "titulo": "Criar modelos de configuracao e persistencia JSON",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T03"
+      ],
+      "contexto_necessario": [
+        "Configuracao em %APPDATA%\\DisplayDimmer\\settings.json"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Models/",
+        "src/DisplayDimmer/Services/SettingsService.cs"
+      ],
+      "criterios_aceite": [
+        "Configuracao criada com padroes na primeira execucao",
+        "Alteracoes persistem entre reinicios"
+      ],
+      "resultado": "AppSettings, Preset, ScheduleEntry, AppRule, MonitorGroup e HotkeySettings com SettingsService (JSON, backup de arquivo corrompido, gravacao com atraso).",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Models/AppSettings.cs",
+        "src/DisplayDimmer/Models/DisplayInfo.cs",
+        "src/DisplayDimmer/Services/SettingsService.cs"
+      ],
+      "testes": [
+        "settings.json criado com presets e agendamentos padrao",
+        "Alteracoes persistiram entre execucoes"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T05",
+      "titulo": "Implementar escurecimento por software com sobreposicao por monitor",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T02"
+      ],
+      "contexto_necessario": [
+        "Camada preta clicavel-transparente por monitor para notebooks e monitores sem DDC/CI"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/OverlayService.cs"
+      ],
+      "criterios_aceite": [
+        "Sobreposicao cobre apenas a area do monitor alvo",
+        "Nao intercepta cliques e nao aparece na barra de tarefas"
+      ],
+      "resultado": "OverlayService com janelas em camadas WS_EX_TRANSPARENT|NOACTIVATE|TOOLWINDOW por monitor, alfa proporcional ao brilho e reposicionamento por SetWindowPos.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/OverlayService.cs"
+      ],
+      "testes": [
+        "Compilacao e revisao de codigo; comportamento visual depende do uso interativo"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T06",
+      "titulo": "Definir especificacao visual e temas com preto #202020",
+      "agente": "Designer",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T01"
+      ],
+      "contexto_necessario": [
+        "Imagem de referencia da janela compacta enviada pelo usuario"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Themes/",
+        "docs/design.md"
+      ],
+      "criterios_aceite": [
+        "Janela reproduz layout da referencia",
+        "Temas claro e escuro legiveis",
+        "Preto mais escuro igual a #202020"
+      ],
+      "resultado": "Especificacao em docs/design.md e temas Dark.xaml/Light.xaml/Controls.xaml com paleta, templates de slider, combo, botoes, cartoes e menu.",
+      "arquivos_alterados": [
+        "docs/design.md",
+        "src/DisplayDimmer/Themes/Dark.xaml",
+        "src/DisplayDimmer/Themes/Light.xaml",
+        "src/DisplayDimmer/Themes/Controls.xaml"
+      ],
+      "testes": [
+        "Snapshots gerados em docs/img (tema escuro e claro)",
+        "Preto do fundo medido em #202020"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Designer",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T07",
+      "titulo": "Construir janela principal compacta com seletor e tres sliders",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T03",
+        "T06"
+      ],
+      "contexto_necessario": [
+        "Layout da referencia: titulo, combo, Brightness, Contrast, Temperature, botoes Settings e Reset levels"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Views/MainWindow.xaml",
+        "src/DisplayDimmer/ViewModels/MainViewModel.cs"
+      ],
+      "criterios_aceite": [
+        "Janela abre com os controles da referencia",
+        "Sliders aplicam mudanca em tempo real",
+        "Reset restaura 100 por cento, neutro 50 por cento e 6500 K"
+      ],
+      "resultado": "MainWindow sem borda com cantos arredondados, seletor de alvos, sliders de brilho, contraste e temperatura com selo Pro e botoes Configuracoes e Restaurar niveis.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Views/MainWindow.xaml",
+        "src/DisplayDimmer/Views/MainWindow.xaml.cs",
+        "src/DisplayDimmer/ViewModels/MainViewModel.cs"
+      ],
+      "testes": [
+        "Snapshot docs/img/janela-principal.png conferido",
+        "Ajustes refletidos no estado salvo"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T08",
+      "titulo": "Implementar icone de bandeja com menu e ajuste de 5% pela roda do mouse",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T07"
+      ],
+      "contexto_necessario": [
+        "Shell_NotifyIcon para capturar WM_MOUSEWHEEL",
+        "Execucao discreta sem janela no boot"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/TrayService.cs"
+      ],
+      "criterios_aceite": [
+        "Icone aparece na bandeja",
+        "Roda do mouse altera brilho em passos de 5 por cento",
+        "Menu lista presets, monitores, automacoes e sair"
+      ],
+      "resultado": "TrayService com Shell_NotifyIcon, dica dinamica, menu com presets e automacoes, roda do mouse em passos configuraveis via hook WH_MOUSE_LL sobre a area de notificacao.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/TrayService.cs",
+        "src/DisplayDimmer/Interop/IconFactory.cs"
+      ],
+      "testes": [
+        "Log confirmou Shell_NotifyIcon com sucesso (icone adicionado=True)",
+        "Menu e roda dependem de uso interativo"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T09",
+      "titulo": "Adicionar atalhos globais e teclas nativas de brilho do teclado",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T07"
+      ],
+      "contexto_necessario": [
+        "RegisterHotKey",
+        "Hook de teclado para VK_BRIGHTNESS_UP/DOWN e WM_APPCOMMAND"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/HotkeyService.cs",
+        "src/DisplayDimmer/Services/BrightnessKeyService.cs"
+      ],
+      "criterios_aceite": [
+        "Atalhos funcionam com o app em segundo plano",
+        "Teclas de brilho do teclado sao interceptadas"
+      ],
+      "resultado": "HotkeyService com RegisterHotKey (0 falhas nos atalhos padrao) e BrightnessKeyService com Raw Input HID Consumer 0x006F/0x0070.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/HotkeyService.cs",
+        "src/DisplayDimmer/Services/BrightnessKeyService.cs"
+      ],
+      "testes": [
+        "Log: atalhos registrados; falhas: 0"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T10",
+      "titulo": "Implementar agendamentos de brilho ao longo do dia",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T04"
+      ],
+      "contexto_necessario": [
+        "Agendamentos com horario, preset ou valores e parametros afetados"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/ScheduleService.cs"
+      ],
+      "criterios_aceite": [
+        "Agendamento ativo aplica preset no horario",
+        "Agendamento pausado nao aplica",
+        "Aplica apenas os parametros marcados"
+      ],
+      "resultado": "ScheduleService com timer de 20 s, janela de recuperacao de 30 min, presets ou valores proprios e filtro de parametros.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/ScheduleService.cs"
+      ],
+      "testes": [
+        "Agendamentos padrao exibidos como cartoes ativos"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T11",
+      "titulo": "Implementar regras por aplicativo e deteccao de tela cheia",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T04"
+      ],
+      "contexto_necessario": [
+        "Monitorar processo em primeiro plano",
+        "Detectar janela em tela cheia sem borda"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Services/AppRuleService.cs"
+      ],
+      "criterios_aceite": [
+        "Regra aplica preset ao focar o processo",
+        "Ao sair do processo, restaura estado anterior",
+        "Modo tela cheia funciona sem processo especifico"
+      ],
+      "resultado": "AppRuleService com polling de 1 s, regra por processo e por tela cheia, snapshot e restauracao do estado anterior.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/AppRuleService.cs"
+      ],
+      "testes": [
+        "Compilacao e revisao de codigo; regra por aplicativo depende de uso interativo"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T12",
+      "titulo": "Criar janela de configuracoes com presets, grupos, cartoes de automacao, atalhos e tema",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T07",
+        "T10",
+        "T11"
+      ],
+      "contexto_necessario": [
+        "Cartoes compactos mostrando regras ativas ou pausadas"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Views/SettingsWindow.xaml",
+        "src/DisplayDimmer/ViewModels/SettingsViewModel.cs"
+      ],
+      "criterios_aceite": [
+        "CRUD de presets, agendamentos e regras",
+        "Cartoes indicam estado ativo ou pausado",
+        "Troca de tema e grupos funcionam"
+      ],
+      "resultado": "SettingsWindow com navegacao lateral, abas Geral, Presets, Automacoes, Monitores e grupos e Atalhos; cartoes de automacao com selo Ativo/Pausado e acoes.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Views/SettingsWindow.xaml",
+        "src/DisplayDimmer/Views/SettingsWindow.xaml.cs",
+        "src/DisplayDimmer/ViewModels/SettingsViewModel.cs"
+      ],
+      "testes": [
+        "Snapshots de todas as abas gerados e revisados"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T13",
+      "titulo": "Adicionar linha de comando e comunicacao com instancia em execucao",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T03",
+        "T04"
+      ],
+      "contexto_necessario": [
+        "Uso via PowerShell e scripts",
+        "Instancia unica com named pipe"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/Cli/CliProcessor.cs",
+        "src/DisplayDimmer/Services/IpcService.cs"
+      ],
+      "criterios_aceite": [
+        "list, get, set, preset funcionam",
+        "Comando altera a instancia aberta e encerra sem abrir janela"
+      ],
+      "resultado": "CliProcessor com list, get, set, preset, reset, status, automation, theme, show, exit e debug; IpcService por named pipe com protocolo de bytes UTF-8.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Cli/CliProcessor.cs",
+        "src/DisplayDimmer/Services/IpcService.cs",
+        "src/DisplayDimmer/Services/ConsoleBridge.cs"
+      ],
+      "testes": [
+        "--list, --get, --set, --preset, --automation, --theme, --json e --exit executados",
+        "Comandos encaminhados para a instancia aberta"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T14",
+      "titulo": "Integrar temas, inicio com o Windows e instancia unica",
+      "agente": "Programador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T12",
+        "T13"
+      ],
+      "contexto_necessario": [
+        "Temas claro, escuro, sistema e opcoes adicionais",
+        "Execucao discreta na bandeja"
+      ],
+      "arquivos_alvo": [
+        "src/DisplayDimmer/App.xaml.cs",
+        "src/DisplayDimmer/Services/ThemeService.cs",
+        "src/DisplayDimmer/Services/StartupService.cs"
+      ],
+      "criterios_aceite": [
+        "Tema do sistema e aplicado automaticamente",
+        "Opcao iniciar com Windows cria entrada de inicializacao",
+        "Segunda instancia encaminha comando para a primeira"
+      ],
+      "resultado": "ThemeService (dark/light/system com releitura periodica), StartupService (HKCU Run com --minimized), instancia unica por mutex e --show.",
+      "arquivos_alterados": [
+        "src/DisplayDimmer/Services/ThemeService.cs",
+        "src/DisplayDimmer/Services/StartupService.cs",
+        "src/DisplayDimmer/App.xaml.cs"
+      ],
+      "testes": [
+        "Tema trocado por --theme light e conferido nos snapshots",
+        "Segunda instancia encaminhou comando para a primeira"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Programador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T15",
+      "titulo": "Compilar, executar verificacoes automatizadas e validar criterios",
+      "agente": "Testador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T14"
+      ],
+      "contexto_necessario": [
+        "Build limpo e execucao dos comandos de CLI"
+      ],
+      "arquivos_alvo": [
+        "tests/"
+      ],
+      "criterios_aceite": [
+        "dotnet build sem erros",
+        "CLI list e set respondem corretamente",
+        "Janela abre sem excecao"
+      ],
+      "resultado": "Compilacao Release sem erros nem avisos, publicacao em dist e verificacoes de CLI, IPC, bandeja, atalhos e revisao visual das duas janelas.",
+      "arquivos_alterados": [
+        "dist/DisplayDimmer.exe"
+      ],
+      "testes": [
+        "dotnet build -c Release: 0 erros, 0 avisos",
+        "dotnet publish -c Release -r win-x64 -o dist",
+        "dist/DisplayDimmer.exe --list e --debug"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Testador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    },
+    {
+      "id": "T16",
+      "titulo": "Documentar uso, atalhos, automacoes e referencia de linha de comando",
+      "agente": "Documentador",
+      "status": "concluida",
+      "selecionada": true,
+      "depende_de": [
+        "T15"
+      ],
+      "contexto_necessario": [
+        "Pasta docs existente"
+      ],
+      "arquivos_alvo": [
+        "docs/README.md",
+        "docs/cli.md"
+      ],
+      "criterios_aceite": [
+        "Documentacao cobre instalacao, uso, CLI e solucao de problemas"
+      ],
+      "resultado": "Documentacao de uso, referencia de CLI, especificacao visual e arquitetura, com capturas das janelas.",
+      "arquivos_alterados": [
+        "docs/README.md",
+        "docs/cli.md",
+        "docs/design.md",
+        "docs/arquitetura.md",
+        "docs/img/",
+        "build.cmd"
+      ],
+      "testes": [
+        "Revisao de conteudo"
+      ],
+      "tentativas": 1,
+      "execucoes": [],
+      "metricas": {
+        "duracao_segundos": 0,
+        "tokens_entrada": null,
+        "tokens_saida": null,
+        "tokens_total": null
+      },
+      "resolvido_por": {
+        "agente": "Documentador",
+        "modelo": null,
+        "provedor": null
+      },
+      "observacoes": []
+    }
+  ],
+  "metricas": {
+    "duracao_segundos": 0,
+    "tokens_total": 0,
+    "tarefas_sem_tokens": [
+      "T01",
+      "T02",
+      "T03",
+      "T04",
+      "T05",
+      "T06",
+      "T07",
+      "T08",
+      "T09",
+      "T10",
+      "T11",
+      "T12",
+      "T13",
+      "T14",
+      "T15",
+      "T16"
+    ],
+    "modelos_usados": []
+  },
+  "historico": [
+    {
+      "em": "2026-10-29T08:19:15-0300",
+      "evento": "ticket_criado",
+      "resumo": "Projeto sem tickets e sem codigo. Solicitacao tratada como primeiro ticket do app Display Dimmer, com 16 microtarefas.",
+      "resultado": "modo_execucao automatico por autorizacao do usuario para desenvolver o app completo"
+    },
+    {
+      "em": "2026-10-29T09:00:00-0300",
+      "evento": "execucao",
+      "resumo": "16 microtarefas executadas em sequencia: solucao WPF, interop DDC/CI e gamma, controlador, modelos, sobreposicao, temas, janela principal, bandeja, atalhos, agendamentos, regras, configuracoes, CLI/IPC, temas/inicializacao, testes e documentacao.",
+      "resultado": "Build Release sem erros; CLI e IPC verificados; snapshots das janelas revisados."
+    },
+    {
+      "em": "2026-10-29T09:00:00-0300",
+      "evento": "pendencias",
+      "resumo": "Dependem de uso interativo do usuario: roda do mouse sobre o icone da bandeja, teclas nativas de brilho do teclado, regras por aplicativo em tela cheia e escurecimento por sobreposicao.",
+      "resultado": "Implementados e compilados; confirmacao visual pelo usuario pendente."
+    }
+  ]
+}
